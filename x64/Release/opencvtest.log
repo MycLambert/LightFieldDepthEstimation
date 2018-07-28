@@ -1,0 +1,2 @@
+﻿  main.cpp
+main.cpp(6): fatal error C1083: 无法打开预编译头文件: “x64\Release\opencvtest.pch”: No such file or directory

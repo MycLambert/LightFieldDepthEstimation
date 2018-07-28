@@ -1,0 +1,393 @@
+#include "opencv2/highgui/highgui.hpp"//包含opencv库头文件
+#include "opencv2/imgproc/imgproc.hpp"
+#include<opencv2\opencv.hpp>
+#include <iostream>
+#include <fstream>
+#include<algorithm>
+using namespace cv;
+using namespace std;
+
+//计算图像梯度，用来判定清晰度
+uint gradsFUN(Mat& finim);
+
+//#1→#2图像与白图像相消，用来消除透镜、环境、光源等带来的误差
+void cut(Mat& outputim, Mat& inputim);
+
+//绘制直方图
+Mat HisDraw(Mat &inpim,Mat &hist_img);
+
+int main(int argc, char** argv) {//主函数
+
+	
+	{
+		int n[] = { 1,4,22,3,8,5 };
+		int len = sizeof(n)/ sizeof(int);
+		cout << *max_element(n, n + len) << endl;
+		cout << *min_element(n, n + len) << endl;
+
+		//int len = sizeof(n) / sizeof(int);
+		cout << "n[" << max_element(n, n + len) - &n[0] << ']' << endl;
+		cout << "n[" << min_element(n, n + len) - &n[0] << ']' << endl;
+	//while (1);
+	}
+
+	double mintemp, maxtemp;
+	double c = 0, c1 = 0;
+	Point minLoc, maxLoc;
+	//max_element
+	Mat inpIM, modIM, resIM,gcaIM;//输入图像，待识别模式图像，用来保存互相关计算值的图像,梯度计算区域
+	int gc[32];//用来储存3*3区域中的每个子区域的梯度
+	int Gmax, GmaxX, GmaxY;
+
+	double nX = 2.5, nY = 2.5;//扩大系数（宏像素区域尺寸 = 扩大系数 * 匹配模板尺寸）
+	double coefX = 124.8/3, coefY = 72;
+	int startX = 39, startY = 59;
+	double shiftX = 5, shiftY = 5;
+	char flag = 0;//用来标记每过一行，初始列值变化半个
+	Mat srcIM = imread("D://data/光场相机检测/光场相机图像处理/test20170614/raw/950-1285-315_Raw.tiff", 0);
+	Mat rgbIM;          
+	Mat bagIM = imread("D://data/光场相机检测/光场相机图像处理/test20170614/raw/BG_Raw.tiff", 0);
+	//cvtColor(srcIM, rgbIM, CV_GRAY2RGB);	
+	Mat tempIM(20, 20, CV_8UC1, Scalar::all(255));
+	Mat mask(40, 40, CV_8UC1, Scalar::all(0));
+	Mat tempmod, tempinp;
+	Mat Hisim;
+
+
+	namedWindow("原始图片");//, WINDOW_NORMAL);
+	namedWindow("直方图");
+	//namedWindow("His");
+
+
+
+	while (1)
+	{
+
+		
+		//cut(srcIM, bagIM) ;
+		cvtColor(srcIM, rgbIM, CV_GRAY2RGB);
+		//equalizeHist(srcIM, srcIM);
+		//imshow("原始图片", srcIM);
+		//imshow("His", srcIM);
+		//waitKey(0);
+		//imshow("1", src);
+
+
+
+		
+		//中心模式识别
+		/*
+		ofstream oFile;
+		oFile.open("Data/0427/sn0081-1.csv", ios::out | ios::trunc);
+		for (int j = 0; j < 60; j++)
+		{
+			for (int i = 0; i < 90; i++)
+			{
+				double RX = startX + i * coefX + flag*(coefX / 2.0), RY = startY + j * (coefY / 2.0);
+				//将一微透镜宏像素全部区域设置为待匹配图片inpIM
+				inpIM = srcIM(Rect(RX - shiftX * nX , RY - shiftY * nY, 2.0 * shiftX * nX, 2.0 * shiftY * nY));
+				//将模板中心点向右移动一个宏像素
+				double RX1 = startX + (i + 1) * coefX + flag *(coefX / 2.0), RY1 = startY + (j + 0) * (coefY / 2.0);
+
+				for (int ky = 0; ky < 8; ky++) 
+				{
+					//int ky = 0;
+					for (int kx = 0; kx < 4; kx++)
+					{
+						//设置梯度计算区域，用来寻找最大梯度区域
+						gcaIM = srcIM(Rect(RX1 - kx  - 5, RY1 - ky - 1, 2 * shiftX, 2 * shiftY));
+						gc[4 * ky + kx] = gradsFUN(gcaIM);
+					}
+				}
+
+				//计算最大梯度位置
+				int len = sizeof(gc) / sizeof(int);		
+				Gmax = max_element(gc, gc + len) - &gc[0];
+				GmaxX = 0;// Gmax % 4;
+				GmaxY = 4;// Gmax / 4;
+
+
+				//将右下相邻区域宏像素 最大梯度位置 设置为匹配模板
+				modIM = srcIM(Rect(RX1 - GmaxX - 5, RY1 - GmaxY - 1, 2 * shiftX, 2 * shiftY));
+
+			//	cout << gradsFUN(modIM) << endl;
+
+				//进行模式识别
+				resize(modIM, tempmod, Size(0, 0), 10, 10);
+				resize(inpIM, tempinp, Size(0, 0), 10, 10);
+				matchTemplate(tempinp, tempmod, resIM, TM_SQDIFF_NORMED);
+
+				//提取模式识别系数最大最小值
+				minMaxLoc(resIM, &mintemp, &maxtemp, &minLoc, &maxLoc);
+				//将待匹配图片用方框圈起来（白线）
+				//if ((minLoc.x > (inpIM.cols - modIM.cols) * 5 / 2) && (minLoc.x < 1000))
+				oFile << coefX + shiftX * nX - GmaxX - shiftX - (double)minLoc.x / 10 << endl;
+				//else
+				//oFile << ",";
+				
+				//rectangle(rgbIM, Point(RX - shiftX * nX, RY - shiftY * nY), Point(RX + shiftX * nX, RY  + shiftY * nY), Scalar(255), 1, 8, 0);
+
+				//rectangle(rgbIM, Rect(RX1 - GmaxX   - shiftX, RY1 - GmaxY  -1, 2 * shiftX, 2 * shiftY), Scalar(0, 0, 250), 1, 8, 0);
+				//绿色标记最大互相关处
+				//rectangle(rgbIM, Rect(RX - shiftX * nX + minLoc.x / 10, RY - shiftY * nY + minLoc.y / 10, 2 * shiftX, 2 * shiftY), Scalar(0, 150, 0), 1, 8, 0);
+				//mask.copyTo(inpIM);
+				
+				//imshow("原始图片", inpIM);
+				
+				//modIM = tempIM.clone();
+			//	cout << "(" << i << "," << j << ")" << endl;
+			}
+			flag = 1 - flag;
+			//oFile << endl;
+		}
+		oFile.close();
+		cout << 'a' << endl;
+		
+		cut(srcIM, bagIM);
+
+		cvtColor(srcIM, rgbIM, CV_GRAY2RGB);
+		//去背景
+		/*
+		ofstream oFilex;
+		oFilex.open("Data/0425/HL2.csv", ios::out | ios::trunc);
+		for (int j = 0; j < 60; j++)
+		{
+			for (int i = 0; i < 90; i++)
+			{
+				double RX = startX + i * coefX + flag*(coefX / 2.0), RY = startY + j * (coefY / 2.0);
+				//将一微透镜宏像素全部区域设置为待匹配图片inpIM
+				inpIM = srcIM(Rect(RX - shiftX * nX, RY - shiftY * nY, 2.0 * shiftX * nX, 2.0 * shiftY * nY));
+				//将模板中心点向右移动一个宏像素
+				double RX1 = startX + (i + 1) * coefX + flag *(coefX / 2.0), RY1 = startY + (j + 0) * (coefY / 2.0);
+
+				for (int ky = 0; ky < 8; ky++)
+				{
+					//int ky = 0;
+					for (int kx = 0; kx < 4; kx++)
+					{
+						//设置梯度计算区域，用来寻找最大梯度区域
+						gcaIM = srcIM(Rect(RX1 - kx - 5, RY1 - ky - 1, 2 * shiftX, 2 * shiftY));
+						gc[4 * ky + kx] = gradsFUN(gcaIM);
+					}
+				}
+
+				//计算最大梯度位置
+				int len = sizeof(gc) / sizeof(int);
+				Gmax = max_element(gc, gc + len) - &gc[0];
+				GmaxX = 0;// Gmax % 4;
+				GmaxY = 4;// Gmax / 4;
+
+
+						  //将右下相邻区域宏像素 最大梯度位置 设置为匹配模板
+				modIM = srcIM(Rect(RX1 - GmaxX - 5, RY1 - GmaxY - 1, 2 * shiftX, 2 * shiftY));
+
+				//	cout << gradsFUN(modIM) << endl;
+
+				//进行模式识别
+				resize(modIM, tempmod, Size(0, 0), 10, 10);
+				resize(inpIM, tempinp, Size(0, 0), 10, 10);
+				matchTemplate(tempinp, tempmod, resIM, TM_SQDIFF_NORMED);
+
+				//提取模式识别系数最大最小值
+				minMaxLoc(resIM, &mintemp, &maxtemp, &minLoc, &maxLoc);
+				//将待匹配图片用方框圈起来（白线）
+				//if ((minLoc.x > (inpIM.cols - modIM.cols) * 5 / 2) && (minLoc.x < 1000))
+				oFilex << coefX + shiftX * nX - GmaxX - shiftX - (double)minLoc.x / 10 << endl;
+				//else
+				//oFile << ",";
+
+				rectangle(rgbIM, Point(RX - shiftX * nX, RY - shiftY * nY), Point(RX + shiftX * nX, RY + shiftY * nY), Scalar(255), 1, 8, 0);
+
+				rectangle(rgbIM, Rect(RX1 - GmaxX - shiftX, RY1 - GmaxY - 1, 2 * shiftX, 2 * shiftY), Scalar(0, 0, 250), 1, 8, 0);
+				//绿色标记最大互相关处
+				rectangle(rgbIM, Rect(RX - shiftX * nX + minLoc.x / 10, RY - shiftY * nY + minLoc.y / 10, 2 * shiftX, 2 * shiftY), Scalar(0, 150, 0), 1, 8, 0);
+				//mask.copyTo(inpIM);
+
+				//imshow("原始图片", inpIM);
+
+				//modIM = tempIM.clone();
+				//	cout << "(" << i << "," << j << ")" << endl;
+			}
+			flag = 1 - flag;
+			//oFile << endl;
+		}
+		oFilex.close();
+		cout << 'b' << endl;
+		*/
+
+		//双自由度模式识别
+		ofstream oFilet;
+		oFilet.open("20170619-950-1285-315.csv", ios::out | ios::trunc);
+		for (int j = 0; j < 60; j++)
+		{
+			for (int i = 0; i < 90; i++)
+			{
+				double RX = startX + i * coefX + flag*(coefX / 2.0), RY = startY + j * (coefY / 2.0);
+				
+				//将模板中心点向右移动一个宏像素
+				double RX1 = startX + (i + 1) * coefX + flag *(coefX / 2.0), RY1 = startY + (j + 0) * (coefY / 2.0);
+
+				for (int ky = 0; ky < 8; ky++)
+				{
+					//int ky = 0;
+					for (int kx = 0; kx < 4; kx++)
+					{
+						//设置梯度计算区域，用来寻找最大梯度区域
+						gcaIM = srcIM(Rect(RX1 - kx - 5, RY1 - ky - 1, 2 * shiftX, 2 * shiftY));
+						gc[4 * ky + kx] = gradsFUN(gcaIM);
+					}
+				}
+
+				//计算最大梯度位置
+				int len = sizeof(gc) / sizeof(int);
+				Gmax = max_element(gc, gc + len) - &gc[0];
+				GmaxX = Gmax % 4;
+				GmaxY = Gmax / 4;
+				//将一微透镜宏像素全部区域设置为待匹配图片inpIM
+				inpIM = srcIM(Rect(RX - shiftX * nX, RY - GmaxY - 1, 2.0 * shiftX * nX, 2.0 * shiftY * 1));
+
+
+						  //将右下相邻区域宏像素 最大梯度位置 设置为匹配模板
+				modIM = srcIM(Rect(RX1 - GmaxX - 5, RY1 - GmaxY - 1, 2 * shiftX, 2 * shiftY));
+
+				//	cout << gradsFUN(modIM) << endl;
+
+				//进行模式识别
+				resize(modIM, tempmod, Size(0, 0), 10, 10);
+				resize(inpIM, tempinp, Size(0, 0), 10, 10);
+				matchTemplate(tempinp, tempmod, resIM, TM_SQDIFF_NORMED);
+
+				//提取模式识别系数最大最小值
+				minMaxLoc(resIM, &mintemp, &maxtemp, &minLoc, &maxLoc);
+				//将待匹配图片用方框圈起来（白线）
+				//if ((minLoc.x > (inpIM.cols - modIM.cols) * 5 / 2) && (minLoc.x < 1000))
+				 c1 = c;
+				 c = coefX + shiftX * nX - GmaxX - shiftX - (double)minLoc.x / 10;
+				 if (*max_element(gc, gc + len) > 10)
+					 oFilet << c << endl;
+				 else
+					 oFilet << c1 << endl;
+
+				rectangle(rgbIM, Point(RX - shiftX * nX, RY - shiftY * nY), Point(RX + shiftX * nX, RY + shiftY * nY), Scalar(255), 1, 8, 0);
+
+				rectangle(rgbIM, Rect(RX1 - GmaxX - shiftX, RY1 - GmaxY - 1, 2 * shiftX, 2 * shiftY), Scalar(0, 0, 250), 1, 8, 0);
+				//绿色标记最大互相关处
+				rectangle(rgbIM, Rect(RX - shiftX * nX + minLoc.x / 10, RY - GmaxY - 1 + minLoc.y / 10, 2 * shiftX, 2 * shiftY), Scalar(0, 150, 0), 1, 8, 0);
+				//mask.copyTo(inpIM);
+
+				//imshow("原始图片", inpIM);
+
+				//modIM = tempIM.clone();
+				//	cout << "(" << i << "," << j << ")" << endl;
+			}
+			flag = 1 - flag;
+			//oFile << endl;
+		}
+		oFilet.close();
+		//cout << 'c' << endl;
+		
+		cout << "计算结束" << endl;
+		//cin >> startX >> startY >> coefX >> coefY;
+		imshow("原始图片", rgbIM);
+		HisDraw(srcIM, Hisim);
+		imshow("直方图", Hisim);
+		resize(modIM, modIM, Size(0, 0), 10, 10);
+		imshow("模板图片", modIM);
+		waitKey(000);
+	}
+	
+	//imshow("匹配结果", resIM);
+
+	waitKey(0);
+	return 0;
+}
+
+
+//计算图像梯度，用来判定清晰度
+uint gradsFUN(Mat& gray)
+{
+	uint grads = 0;
+	// 读取图像  
+	//Mat img = finim;
+
+	// 转换为灰度图像  
+	//Mat gray = finim1;
+			 //cvtColor(img, gray, CV_BGR2GRAY);
+
+			 // 求得x和y方向的一阶微分  
+	Mat sobelx;
+	Mat sobely;
+	Sobel(gray, sobelx, CV_32F, 1, 0, 3);
+	Sobel(gray, sobely, CV_32F, 0, 1, 3);
+
+	// 求得梯度和方向  
+	Mat norm;
+	Mat dir;
+	cartToPolar(sobelx, sobely, norm, dir);
+
+	// 转换为8位单通道图像进行显示  
+	double normMax;
+	minMaxLoc(norm, NULL, &normMax);
+	Mat grad;
+	norm.convertTo(grad, CV_8UC1, 255.0 / normMax, 0);
+	int i = 0;
+	int j = 0;
+
+	for (i = 0; i < grad.cols; i++)
+	{
+		for (j = 0; j < grad.cols; j++)
+		{
+			grads += grad.at<uchar>(j, i);
+		}
+	}
+
+	return grads;
+}
+
+//#1→#2图像与白图像相消，用来消除透镜、环境、光源等带来的误差
+void cut(Mat& outputim, Mat& inputim)
+{
+	for (int j = 0; j < inputim.cols; j++)
+	{
+		for (int i = 0; i < inputim.rows; i++)
+		{
+			outputim.at<uchar>(i, j) = -outputim.at<uchar>(i, j) + 150  + inputim.at<uchar>(i, j);
+		}
+	}
+
+}
+
+Mat HisDraw(Mat &inpim, Mat &hist_img)
+{	
+	Mat src, gray;
+	src = inpim;
+	gray = inpim;
+	//cvtColor(src, gray, CV_RGB2GRAY);
+	int bins = 256;
+	int hist_size[] = { bins };
+	float range[] = { 0, 256 };
+	const float* ranges[] = { range };
+	MatND hist;
+	int channels[] = { 0 };
+
+	calcHist(&gray, 1, channels, Mat(), // do not use mask  
+		hist, 1, hist_size, ranges,
+		true, // the histogram is uniform  
+		false);
+
+	double max_val;
+	minMaxLoc(hist, 0, &max_val, 0, 0);
+	int scale = 2;
+	int hist_height = 256;
+	hist_img = Mat::zeros(hist_height, bins*scale, CV_8UC3);
+	for (int i = 0; i < bins; i++)
+	{
+		float bin_val = hist.at<float>(i);
+		int intensity = cvRound(bin_val*hist_height / max_val);  //要绘制的高度  
+		rectangle(hist_img, Point(i*scale, hist_height - 1),
+			Point((i + 1)*scale - 1, hist_height - intensity),
+			CV_RGB(255, 255, 255));
+	}
+	return hist_img;
+}
+

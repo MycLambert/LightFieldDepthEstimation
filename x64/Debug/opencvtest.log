@@ -1,0 +1,16 @@
+﻿  main.cpp
+d:\software\office_software_pro\opencv3.1.0\opencv\build\include\opencv2\core\mat.hpp(1965): warning C4819: 该文件包含不能在当前代码页(936)中表示的字符。请将该文件保存为 Unicode 格式以防止数据丢失
+d:\software\office_software_pro\opencv3.1.0\opencv\build\include\opencv2\core\persistence.hpp : warning C4819: 该文件包含不能在当前代码页(936)中表示的字符。请将该文件保存为 Unicode 格式以防止数据丢失
+d:\software\office_software_pro\opencv3.1.0\opencv\build\include\opencv2\core\utility.hpp : warning C4819: 该文件包含不能在当前代码页(936)中表示的字符。请将该文件保存为 Unicode 格式以防止数据丢失
+d:\software\office_software_pro\opencv3.1.0\opencv\build\include\opencv2\core\utility.hpp : warning C4819: 该文件包含不能在当前代码页(936)中表示的字符。请将该文件保存为 Unicode 格式以防止数据丢失
+c:\users\yuanchi\documents\visual studio 2015\projects\opencvtest\opencvtest\main.cpp(261): warning C4244: “return”: 从“float”转换到“int”，可能丢失数据
+c:\users\yuanchi\documents\visual studio 2015\projects\opencvtest\opencvtest\main.cpp(271): warning C4244: “=”: 从“intptr_t”转换到“long”，可能丢失数据
+c:\users\yuanchi\documents\visual studio 2015\projects\opencvtest\opencvtest\main.cpp(319): warning C4244: “初始化”: 从“double”转换到“int”，可能丢失数据
+c:\users\yuanchi\documents\visual studio 2015\projects\opencvtest\opencvtest\main.cpp(311): warning C4101: “depth”: 未引用的局部变量
+c:\users\yuanchi\documents\visual studio 2015\projects\opencvtest\opencvtest\main.cpp(406): warning C4244: “参数”: 从“double”转换到“int”，可能丢失数据
+c:\users\yuanchi\documents\visual studio 2015\projects\opencvtest\opencvtest\main.cpp(414): warning C4244: “=”: 从“__int64”转换到“int”，可能丢失数据
+c:\users\yuanchi\documents\visual studio 2015\projects\opencvtest\opencvtest\main.cpp(419): warning C4244: “参数”: 从“double”转换到“int”，可能丢失数据
+c:\users\yuanchi\documents\visual studio 2015\projects\opencvtest\opencvtest\main.cpp(422): warning C4244: “参数”: 从“double”转换到“int”，可能丢失数据
+c:\users\yuanchi\documents\visual studio 2015\projects\opencvtest\opencvtest\main.cpp(511): warning C4102: “ESC”: 未引用的标签
+  opencvtest.vcxproj -> C:\Users\Yuanchi\Documents\Visual Studio 2015\Projects\opencvtest\x64\Debug\opencvtest.exe
+  opencvtest.vcxproj -> C:\Users\Yuanchi\Documents\Visual Studio 2015\Projects\opencvtest\x64\Debug\opencvtest.pdb (Full PDB)
