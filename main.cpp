@@ -35,8 +35,8 @@ vector<string> string_split(const string &s, const string &seperator);
 
 int main(int argc, char** argv) {//主函数
 
-	system("dir /b /a-d D:\\data\\光场相机检测\\光场相机图像处理\\20180727\\*.tiff >D:\\data\\光场相机检测\\光场相机图像处理\\20180727\\allfiles.txt");
-	readTxt("D:\\data\\光场相机检测\\光场相机图像处理\\20180727\\allfiles.txt");
+	system("dir /b /a-d I:\\刘慧芳实验\\静态圆点标定\\20180724静态圆点原图\\20180724远到近原图\\*.tiff >H:\\马原驰\\数据文件\\20180729\\allfiles.txt");
+	readTxt("H:\\马原驰\\数据文件\\20180729\\allfiles.txt");
 	system("pause");
 
 	return 0;
@@ -298,11 +298,11 @@ void readTxt(string file)
 	assert(infile.is_open());   //若失败,则输出错误消息,并终止程序运行 
 
 	ofstream oFilet;
-	string result_name = "D:\\data\\光场相机检测\\光场相机图像处理\\20180727\\result2\\result.csv";
+	string result_name = "H:\\马原驰\\数据文件\\20180729\\result.csv";
 	oFilet.open(result_name, ios::out | ios::trunc);
 
 	ofstream oFilet_log;
-	string log_name = "D:\\data\\光场相机检测\\光场相机图像处理\\20180727\\result2\\log.txt";
+	string log_name = "H:\\马原驰\\数据文件\\20180729\\log.txt";
 	oFilet_log.open(log_name, ios::out | ios::trunc);
 
 	string s;
@@ -312,22 +312,28 @@ void readTxt(string file)
 	while (getline(infile, s))
 	{
 		i++;
-		string lenth = string_split(string_split(s, "-")[7], "_")[0];
+		string lenth = string_split(string_split(s, "-")[8], "_")[0];
 		double depth = calculation_depth(s);
 		second = time(NULL);
 		char diff_time_string[100];
 		int diff_time = difftime(second, first);
+		char rema_time_string[100];
+		int rema_time = (1310 - i) * (diff_time / i);
+
 		if (diff_time > 60)
 		{
-			sprintf_s(diff_time_string, "%dm%ds", diff_time / 60, diff_time % 60);
+			sprintf_s(diff_time_string, "%dm%ds(%.2fs/photo)", diff_time / 60, diff_time % 60, (double)diff_time / i);
 		}
 		else
 		{
-			sprintf_s(diff_time_string, "%ds",diff_time);
+			sprintf_s(diff_time_string, "%ds(%.2fs/photo)", diff_time, (double)diff_time / i);
 		}
-		cout << i << " - Lenth is:" << lenth << "  ---- " << depth << ", during time is:" << diff_time_string << endl;
+
+		sprintf_s(rema_time_string, "%dh%dm%ds", rema_time / 3600, rema_time / 60 / 60, rema_time % 60, rema_time / i);
+
+		cout << i << " - Lenth is:" << lenth << "  -- " << depth << "\n  time:" << diff_time_string << ", remain:" << rema_time_string << endl;
 		oFilet << lenth << ',' << depth << endl;
-		oFilet_log << i << " - Lenth is:" << lenth << "  ---- " << depth << ", during time is:" << diff_time_string << endl;
+		oFilet_log << i << " - Lenth is:" << lenth << "  -- " << depth << "\n  time:" << diff_time_string << ", remain:" << rema_time_string << endl;
 	}
 	infile.close();             //关闭文件输入流 
 	oFilet.close();
@@ -353,14 +359,14 @@ double calculation_depth(string IM_name)
 	const double shiftX = 5, shiftY = 5;
 	char flag = 0;//用来标记每过一行，初始列值变化半个
 
-	string IM_full_name = "D:\\data\\光场相机检测\\光场相机图像处理\\20180727\\" + IM_name;
+	string IM_full_name = "I:\\刘慧芳实验\\静态圆点标定\\20180724静态圆点原图\\20180724远到近原图\\" + IM_name;
 	Mat srcIM = imread(IM_full_name, 0);
 	//GaussianBlur(srcIM, srcIM, Size(3, 3), 2, 2);
 	medianBlur(srcIM, srcIM, 3);
 
-	//ofstream oFilet;
-	//string EX_full_name = "D:\\data\\光场相机检测\\光场相机图像处理\\20180727\\excell\\" + IM_name + "-Nex.csv";
-	//oFilet.open(EX_full_name, ios::out | ios::trunc);
+	ofstream oFilet;
+	string EX_full_name = "H:\\马原驰\\数据文件\\20180729\\Dvalue\\" + IM_name + "-Nex.csv";
+	oFilet.open(EX_full_name, ios::out | ios::trunc);
 	Mat rgbIM;
 	Mat depthIM(srcIM.rows, srcIM.cols, CV_8UC3, Scalar::all(0));
 	Mat bagIM = imread("D://data/光场相机检测/光场相机图像处理/test20170614/raw/BG_Raw.tiff", 0);
@@ -382,6 +388,7 @@ double calculation_depth(string IM_name)
 
 
 		//双自由度模式识别
+#pragma omp parallel for schedule(static,4)
 		for (int j = 0; j < 60; j++)
 		{
 			for (int i = 0; i < 90; i++)
@@ -458,6 +465,7 @@ double calculation_depth(string IM_name)
 				{
 					 D_num++;
 					 D_result += D_value;
+					 oFilet << D_value << endl;
 					 /*
 					//oFilet << minLoc.x << endl;
 					//oFilet << D_value << endl;
@@ -494,7 +502,7 @@ double calculation_depth(string IM_name)
 			}
 			flag = 1 - flag;
 		}
-		//oFilet.close();
+		oFilet.close();
 
 		//cout << "计算结束" << endl;
 		return D_result / D_num;
